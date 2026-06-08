@@ -62,9 +62,7 @@ defmodule OtelMetricExporter.LogHandler do
     {olp_config, accumulator_config} = Map.split(Map.new(config), @olp_config_keys)
     base_name = reg_name(handler_config)
 
-    # Capture the user-facing config (before we merge OLP internals into it) so
-    # `LogHandlerGuardian` can re-add this handler verbatim if the OTP logger
-    # later detaches it. See `OtelMetricExporter.LogHandlerGuardian`.
+    # User-facing config (before OLP internals are merged in) for re-adds.
     watch_config = Map.drop(handler_config, [:id, :module])
 
     with {:ok, olp_config} <- prevalidate_olp(olp_config),
