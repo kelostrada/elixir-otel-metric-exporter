@@ -58,9 +58,14 @@ defmodule OtelMetricExporter.LogHandler do
   ]
 
   @impl true
-  def adding_handler(%{config: config} = handler_config) do
+  def adding_handler(%{id: id, module: module, config: config} = handler_config) do
     {olp_config, accumulator_config} = Map.split(Map.new(config), @olp_config_keys)
     base_name = reg_name(handler_config)
+
+    # Capture the user-facing config (before we merge OLP internals into it) so
+    # `LogHandlerGuardian` can re-add this handler verbatim if the OTP logger
+    # later detaches it. See `OtelMetricExporter.LogHandlerGuardian`.
+    watch_config = Map.drop(handler_config, [:id, :module])
 
     with {:ok, olp_config} <- prevalidate_olp(olp_config),
          {:ok, config} <- LogAccumulator.check_config(accumulator_config, base_name),
@@ -71,8 +76,16 @@ defmodule OtelMetricExporter.LogHandler do
       # if it crashes for any reason to avoid taking down the entire logger process.
       :ok = :logger_handler_watcher.register_handler(handler_config.id, sup_pid)
 
+      if reattach_enabled?() do
+        OtelMetricExporter.LogHandlerGuardian.watch(id, module, watch_config)
+      end
+
       {:ok, %{handler_config | config: config |> Map.merge(olp_opts) |> Map.put(:olp, olp)}}
     end
+  end
+
+  defp reattach_enabled? do
+    Application.get_env(:otel_metric_exporter, :reattach_detached_log_handlers, true)
   end
 
   defp prevalidate_olp(olp_config) do

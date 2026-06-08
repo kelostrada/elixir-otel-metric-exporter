@@ -5,7 +5,11 @@ defmodule OtelMetricExporter.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Finch, name: OtelMetricExporter.Finch, pools: %{:default => [size: 10, count: 1]}}
+      {Finch, name: OtelMetricExporter.Finch, pools: %{:default => [size: 10, count: 1]}},
+      # Re-attaches LogHandler instances that the OTP logger detaches when their
+      # OLP supervisor auto-shuts-down (e.g. after a gateway outage). See
+      # OtelMetricExporter.LogHandlerGuardian.
+      OtelMetricExporter.LogHandlerGuardian
     ]
 
     opts = [strategy: :one_for_one, name: OtelMetricExporter.Supervisor]
